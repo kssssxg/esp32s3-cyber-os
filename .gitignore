@@ -1,0 +1,50 @@
+# ===== 操作系统文件 =====
+Thumbs.db
+.DS_Store
+Desktop.ini
+*.swp
+*.swo
+*~
+
+# ===== IDE / 编辑器 =====
+.idea/
+.vscode/
+*.suo
+*.user
+*.workspace
+
+# ===== Arduino =====
+build/
+*.elf
+*.bin
+*.hex
+*.map
+
+# ===== 编译中间文件 =====
+*.o
+*.d
+*.a
+*.so
+
+# ===== 音乐缓存（版权音乐文件，勿提交） =====
+music_cache/
+*.mp3
+*.m4a
+*.wav
+*.flac
+
+# ===== 大型二进制文件 =====
+# 124.h 是中文字体位图（~11MB），需要保留，但不会被 git 频繁变动
+
+# ===== NES 参考项目中的库文件（可在 Arduino IDE 中安装） =====
+nes/esp32s3_nes_gamer/lib/
+
+# ===== 凭证与敏感信息 =====
+*.key
+*.pem
+secrets.h
+credentials.h
+wifi_config.h
+
+# ===== 日志 =====
+*.log

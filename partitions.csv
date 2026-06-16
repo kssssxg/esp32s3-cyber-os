@@ -1,0 +1,8 @@
+# ESP32 Partition Table, 16MB Flash, with coredump (crash log) partition
+# Name,      Type, SubType,    Offset,   Size
+nvs,         data, nvs,        0x9000,   0x5000,
+phy_init,    data, phy,        0xe000,   0x1000,
+factory,     app,  factory,    0x10000,  0xD00000,
+coredump,    data, coredump,  0xD10000, 0x10000,
+# (Optional) 为向后兼容保留，暂无具体用途
+undefined,   data, undefined,  0xD20000, 0x20000,

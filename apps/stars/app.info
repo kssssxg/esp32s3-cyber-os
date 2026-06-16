@@ -1,0 +1,6 @@
+name=星空动画
+color=2047
+template=canvas
+style=stars
+speed=50
+title=Starfield

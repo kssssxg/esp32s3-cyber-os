@@ -1,0 +1,6 @@
+name=数字时钟
+color=65535
+template=clock
+title=Cyber Clock
+format=24
+show_sec=1

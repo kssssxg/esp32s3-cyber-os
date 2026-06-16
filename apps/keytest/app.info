@@ -1,0 +1,5 @@
+name=按键测试
+color=63488
+template=list
+title=Key Tester
+items=UP,DOWN,LEFT,RIGHT,OK
