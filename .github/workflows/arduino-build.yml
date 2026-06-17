@@ -152,6 +152,11 @@ jobs:
         with:
           path: artifacts/
 
+      - name: List downloaded artifacts
+        run: |
+          echo "=== Downloaded files ==="
+          find artifacts/ -type f -exec ls -lh {} \;
+
       - name: Generate release tag
         id: tag
         run: |
@@ -185,6 +190,7 @@ jobs:
             - 240x240-ILI9341 (0x9341)
             
             > 💡 Flash with: `esptool.py write_flash 0x10000 firmware.bin`
-          files: artifacts/**/*
+          files: |
+            artifacts/firmware-*/*.bin
           prerelease: ${{ steps.tag.outputs.prerelease }}
           generate_release_notes: true
