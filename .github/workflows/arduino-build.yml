@@ -74,6 +74,14 @@ jobs:
           arduino-cli lib install "Adafruit_NeoPixel"
           arduino-cli lib install "ArduinoJson"
           arduino-cli lib install "TimeLib"
+          
+          # Install ESP32-audioI2S from GitHub (not in Arduino library index)
+          mkdir -p ~/Arduino/libraries
+          cd ~/Arduino/libraries
+          curl -L -o audio.zip "https://github.com/schreibfaul1/ESP32-audioI2S/archive/refs/heads/master.zip"
+          unzip -q audio.zip
+          mv ESP32-audioI2S-master ESP32-audioI2S
+          rm audio.zip
 
       - name: Configure TFT_eSPI for ${{ matrix.screen.name }}
         run: |
