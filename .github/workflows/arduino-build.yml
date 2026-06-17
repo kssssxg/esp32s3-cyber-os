@@ -151,7 +151,7 @@ jobs:
           echo "| Screen | Status | Files |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|--------|-------|" >> $GITHUB_STEP_SUMMARY
           
-          for dir in ./all-firmwares/*/; do
+          for dir in ./build/*/; do
             [ -d "$dir" ] && {
               SCREEN=$(basename "$dir")
               COUNT=$(find "$dir" -name "*.bin" 2>/dev/null | wc -l)
