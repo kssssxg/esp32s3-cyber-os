@@ -29,9 +29,10 @@ env:
 
 jobs:
   build:
-    # FIX: Use ubuntu-22.04 (x86_64) instead of ubuntu-latest (now ARM64)
-    # to avoid "esp32:openocd-esp32: no versions available for the current OS"
-    runs-on: ubuntu-22.04
+    # FIX: Use macos-15-intel (x86_64 Intel) instead of ubuntu-latest/22.04 (now ARM64)
+    # ESP32 board package's openocd-esp32 tool is not available for ARM64 Linux
+    # macOS has Homebrew-supported OpenOCD that works on Intel architecture
+    runs-on: macos-15-intel
     
     strategy:
       fail-fast: false
@@ -49,9 +50,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Arduino CLI via snap
+      - name: Install Arduino CLI
         run: |
-          sudo snap install arduino-cli
+          brew install arduino-cli
           arduino-cli version
 
       - name: Install ESP32 board package
@@ -135,7 +136,7 @@ jobs:
           retention-days: 30
 
   summary:
-    runs-on: ubuntu-22.04
+    runs-on: macos-15-intel
     needs: build
     if: always()
     steps:
@@ -159,7 +160,7 @@ jobs:
           done
 
   release:
-    runs-on: ubuntu-22.04
+    runs-on: macos-15-intel
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
