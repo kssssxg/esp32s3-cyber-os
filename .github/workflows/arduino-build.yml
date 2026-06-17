@@ -1,3 +1,6 @@
+# ESP32-S3 Cyber OS Build Workflow
+# Multi-screen matrix build for 7 display configurations
+
 name: ESP32-S3 Cyber OS Build (Multi-Screen)
 
 on:
@@ -17,131 +20,59 @@ on:
       - 'src/**'
       - '*.ino'
       - 'partitions.csv'
+      - 'User_Setup.h'
+      - '.github/workflows/**'
   workflow_dispatch:
 
 env:
-  BOARD_FQBN: esp32:esp32:esp32s3
+  BOARD_FQBN: esp32:esp32:esp32s3:FlashSize=16M
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # FIX: Use macos-15-intel (x86_64 Intel) instead of ubuntu-latest/22.04 (now ARM64)
+    # ESP32 board package's openocd-esp32 tool is not available for ARM64 Linux
+    # macOS has Homebrew-supported OpenOCD that works on Intel architecture
+    runs-on: macos-15-intel
+    
     strategy:
       fail-fast: false
       matrix:
         screen:
-          - name: "240x240-Circular"
-            driver: "0x7735"
-            width: "240"
-            height: "240"
-            miso: "19"
-            mosi: "13"
-            sclk: "14"
-            cs: "15"
-            dc: "4"
-            rst: "48"
-          
-          - name: "240x280-Rect"
-            driver: "0x9341"
-            width: "240"
-            height: "280"
-            miso: "19"
-            mosi: "13"
-            sclk: "14"
-            cs: "15"
-            dc: "4"
-            rst: "48"
-          
-          - name: "320x480"
-            driver: "0x9341"
-            width: "320"
-            height: "480"
-            miso: "19"
-            mosi: "13"
-            sclk: "14"
-            cs: "15"
-            dc: "4"
-            rst: "48"
-          
-          - name: "480x480"
-            driver: "0x9341"
-            width: "480"
-            height: "480"
-            miso: "19"
-            mosi: "13"
-            sclk: "14"
-            cs: "15"
-            dc: "4"
-            rst: "48"
-          
-          - name: "240x320-ST7789"
-            driver: "0x7789"
-            width: "240"
-            height: "320"
-            miso: "19"
-            mosi: "13"
-            sclk: "14"
-            cs: "15"
-            dc: "4"
-            rst: "48"
-          
-          - name: "360x640"
-            driver: "0x9341"
-            width: "360"
-            height: "640"
-            miso: "19"
-            mosi: "13"
-            sclk: "14"
-            cs: "15"
-            dc: "4"
-            rst: "48"
-          
-          - name: "240x240-ILI9341"
-            driver: "0x9341"
-            width: "240"
-            height: "240"
-            miso: "19"
-            mosi: "13"
-            sclk: "14"
-            cs: "15"
-            dc: "4"
-            rst: "48"
-    
+          - {name: "240x240-Circular", driver: "0x7735", width: 240, height: 240, miso: 19, mosi: 13, sclk: 14, cs: 15, dc: 4, rst: 48}
+          - {name: "240x280-Rect", driver: "0x9341", width: 240, height: 280, miso: 19, mosi: 13, sclk: 14, cs: 15, dc: 4, rst: 48}
+          - {name: "320x480", driver: "0x9341", width: 320, height: 480, miso: 19, mosi: 13, sclk: 14, cs: 15, dc: 4, rst: 48}
+          - {name: "480x480", driver: "0x9341", width: 480, height: 480, miso: 19, mosi: 13, sclk: 14, cs: 15, dc: 4, rst: 48}
+          - {name: "240x320-ST7789", driver: "0x7789", width: 240, height: 320, miso: 19, mosi: 13, sclk: 14, cs: 15, dc: 4, rst: 48}
+          - {name: "360x640", driver: "0x9341", width: 360, height: 640, miso: 19, mosi: 13, sclk: 14, cs: 15, dc: 4, rst: 48}
+          - {name: "240x240-ILI9341", driver: "0x9341", width: 240, height: 240, miso: 19, mosi: 13, sclk: 14, cs: 15, dc: 4, rst: 48}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Arduino CLI via snap
+      - name: Install Arduino CLI
         run: |
-          sudo snap install arduino-cli
+          brew install arduino-cli
           arduino-cli version
 
       - name: Install ESP32 board package
         run: |
           arduino-cli config init
           arduino-cli core install esp32:esp32@2.0.17
+          # Copy custom partition table to board package tools
+          mkdir -p ~/Library/Arduino15/packages/esp32/hardware/esp32/2.0.17/tools/partitions/
+          cp partitions.csv ~/Library/Arduino15/packages/esp32/hardware/esp32/2.0.17/tools/partitions/cyberos_16MB.csv
 
-      - name: Install required libraries
+      - name: Install libraries
         run: |
-          arduino-cli lib install "TFT_eSPI"
-          arduino-cli lib install "NimBLE-Arduino"
-          arduino-cli lib install "SdFat"
-          arduino-cli lib install "TJpg_Decoder"
-          arduino-cli lib install "PNGdec"
-          arduino-cli lib install "AnimatedGIF"
-          arduino-cli lib install "ESP32-audioI2S"
-          arduino-cli lib install "NTPClient"
-          arduino-cli lib install "MD_MIDIFile"
-          arduino-cli lib install "Adafruit_NeoPixel"
+          # Libraries are pre-installed in ./libraries/ directory in the repo
+          # Only install ArduinoJson from index (it's available there)
           arduino-cli lib install "ArduinoJson"
-          arduino-cli lib install "TimeLib"
 
       - name: Configure TFT_eSPI for ${{ matrix.screen.name }}
         run: |
-          LIB_PATH=$(find ~/.arduino15/packages -name "TFT_eSPI*" -type d | head -1)
-          [ -z "$LIB_PATH" ] && LIB_PATH=$(find ~/Arduino/libraries -name "TFT_eSPI" -type d | head -1)
-          
-          echo "Configuring for: ${{ matrix.screen.name }}"
-          mkdir -p "$LIB_PATH" 2>/dev/null || true
+          # TFT_eSPI is in ./libraries/ directory
+          LIB_PATH="./libraries/TFT_eSPI"
           
           cat > "$LIB_PATH/User_Setup.h" << EOF
           #define USER_SETUP_ID 1
@@ -174,18 +105,28 @@ jobs:
           
           mkdir -p ./build/${{ matrix.screen.name }}
           
-          echo "Building for: ${{ matrix.screen.name }}"
-          
-          arduino-cli compile             --fqbn $BOARD_FQBN             --output-dir ./build/${{ matrix.screen.name }}             --build-property build.extra_flags="-DBOARD_HAS_PSRAM -mfix-esp32-psram-cache-issue"             "$INO_FILE" || {
-            echo "Build failed, trying without extra flags..."
-            arduino-cli compile               --fqbn $BOARD_FQBN               --output-dir ./build/${{ matrix.screen.name }}               "$INO_FILE"
-          }
+          arduino-cli compile \
+            --fqbn $BOARD_FQBN \
+            --output-dir ./build/${{ matrix.screen.name }} \
+            --libraries ./libraries \
+            --build-property build.partitions=cyberos_16MB \
+            --build-property upload.maximum_size=13631488 \
+            --build-property build.extra_flags="-DBOARD_HAS_PSRAM -mfix-esp32-psram-cache-issue" \
+            "$INO_FILE" || {
+              echo "Build failed with PSRAM flags, trying without..."
+              arduino-cli compile \
+                --fqbn $BOARD_FQBN \
+                --libraries ./libraries \
+                --build-property build.partitions=cyberos_16MB \
+                --build-property upload.maximum_size=13631488 \
+                --output-dir ./build/${{ matrix.screen.name }} \
+                "$INO_FILE"
+            }
           
           cd ./build/${{ matrix.screen.name }}
           for bin in *.bin; do
             [ -f "$bin" ] && mv "$bin" "cyberos-${{ matrix.screen.name }}-$(git rev-parse --short HEAD).bin"
           done
-          ls -la
 
       - name: Upload artifacts for ${{ matrix.screen.name }}
         uses: actions/upload-artifact@v4
@@ -194,63 +135,56 @@ jobs:
           path: build/${{ matrix.screen.name }}/
           retention-days: 30
 
-      - name: Build Summary for ${{ matrix.screen.name }}
-        run: |
-          echo "### 🖥️ ${{ matrix.screen.name }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Driver:** 0x${{ matrix.screen.driver }} | **Resolution:** ${{ matrix.screen.width }}×${{ matrix.screen.height }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          for bin in build/${{ matrix.screen.name }}/*.bin; do
-            [ -f "$bin" ] && echo "- \`$(basename $bin)\`: $(du -h "$bin" | cut -f1)" >> $GITHUB_STEP_SUMMARY
-          done
-
-  summary:
-    needs: build
-    runs-on: ubuntu-latest
-    if: always()
-    
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./all-firmwares
-
-      - name: Generate summary
-        run: |
-          echo "# 🔧 ESP32-S3 Cyber OS - Build Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** ${{ github.sha }} | **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## ✅ Build Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Screen | Status | Files |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          
-          for dir in ./all-firmwares/*/; do
-            [ -d "$dir" ] && {
-              SCREEN=$(basename "$dir")
-              COUNT=$(find "$dir" -name "*.bin" 2>/dev/null | wc -l)
-              echo "| $SCREEN | ✅ | $COUNT |" >> $GITHUB_STEP_SUMMARY
-            }
-          done
-
   release:
+    runs-on: macos-15-intel
     needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: ./firmwares
+          path: artifacts/
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          else
+            TAG="build-$(date +%Y%m%d-%H%M)-${GITHUB_SHA::7}"
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: firmwares/**/*.bin
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "ESP32-S3 Cyber OS ${{ steps.tag.outputs.tag }}"
+          body: |
+            ## 🔧 ESP32-S3 Cyber OS - Auto Build
+            
+            **Commit:** ${{ github.sha }}
+            **Branch:** ${{ github.ref_name }}
+            
+            ### 📦 Firmware Downloads
+            - 240x240-Circular (0x7735)
+            - 240x280-Rect (0x9341)
+            - 320x480 (0x9341)
+            - 480x480 (0x9341)
+            - 240x320-ST7789 (0x7789)
+            - 360x640 (0x9341)
+            - 240x240-ILI9341 (0x9341)
+            
+            > 💡 Flash with: `esptool.py write_flash 0x10000 firmware.bin`
+          files: artifacts/**/*
+          prerelease: ${{ steps.tag.outputs.prerelease }}
           generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
