@@ -21,7 +21,6 @@ on:
 
 env:
   BOARD_FQBN: esp32:esp32:esp32s3
-  ARDUINO_CLI_VERSION: "0.47.0"
 
 jobs:
   build:
@@ -40,7 +39,6 @@ jobs:
             cs: "15"
             dc: "4"
             rst: "48"
-            description: "240×240 圆形 (ST7789)"
           
           - name: "240x280-Rect"
             driver: "0x9341"
@@ -52,7 +50,6 @@ jobs:
             cs: "15"
             dc: "4"
             rst: "48"
-            description: "240×280 (ILI9341)"
           
           - name: "320x480"
             driver: "0x9341"
@@ -64,7 +61,6 @@ jobs:
             cs: "15"
             dc: "4"
             rst: "48"
-            description: "320×480 (ILI9341)"
           
           - name: "480x480"
             driver: "0x9341"
@@ -76,7 +72,6 @@ jobs:
             cs: "15"
             dc: "4"
             rst: "48"
-            description: "480×480 (ILI9341)"
           
           - name: "240x320-ST7789"
             driver: "0x7789"
@@ -88,7 +83,6 @@ jobs:
             cs: "15"
             dc: "4"
             rst: "48"
-            description: "240×320 (ST7789)"
           
           - name: "360x640"
             driver: "0x9341"
@@ -100,7 +94,6 @@ jobs:
             cs: "15"
             dc: "4"
             rst: "48"
-            description: "360×640 (ILI9341)"
           
           - name: "240x240-ILI9341"
             driver: "0x9341"
@@ -112,18 +105,14 @@ jobs:
             cs: "15"
             dc: "4"
             rst: "48"
-            description: "240×240 (ILI9341)"
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download Arduino CLI
+      - name: Install Arduino CLI via snap
         run: |
-          curl -fsSL https://downloads.arduino.cc/arduino-cli/arduino-cli_${ARDUINO_CLI_VERSION}_Linux_64bit.tar.gz -o arduino-cli.tar.gz
-          tar -xzf arduino-cli.tar.gz
-          chmod +x arduino-cli
-          sudo mv arduino-cli /usr/local/bin/
+          sudo snap install arduino-cli
           arduino-cli version
 
       - name: Install ESP32 board package
@@ -150,7 +139,6 @@ jobs:
         run: |
           LIB_PATH=$(find ~/.arduino15/packages -name "TFT_eSPI*" -type d | head -1)
           [ -z "$LIB_PATH" ] && LIB_PATH=$(find ~/Arduino/libraries -name "TFT_eSPI" -type d | head -1)
-          [ -z "$LIB_PATH" ] && LIB_PATH=$(arduino-cli lib list --format json | jq -r '.[] | select(.name == "TFT_eSPI") | .installLocation' 2>/dev/null)
           
           echo "Configuring for: ${{ matrix.screen.name }}"
           mkdir -p "$LIB_PATH" 2>/dev/null || true
