@@ -18,15 +18,10 @@ on:
       - '*.ino'
       - 'partitions.csv'
   workflow_dispatch:
-    inputs:
-      screens:
-        description: 'Screens to build (leave empty for all)'
-        required: false
-        default: ''
 
 env:
-  ARDUINO_IDE_VERSION: 1.8.19
   BOARD_FQBN: esp32:esp32:esp32s3
+  ARDUINO_CLI_VERSION: "0.47.0"
 
 jobs:
   build:
@@ -35,7 +30,6 @@ jobs:
       fail-fast: false
       matrix:
         screen:
-          # 圆形屏幕
           - name: "240x240-Circular"
             driver: "0x7735"
             width: "240"
@@ -48,7 +42,6 @@ jobs:
             rst: "48"
             description: "240×240 圆形 (ST7789)"
           
-          # 矩形屏幕系列
           - name: "240x280-Rect"
             driver: "0x9341"
             width: "240"
@@ -125,13 +118,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Arduino CLI
-        uses: arduino/setup-arduino-cli@v2
-        with:
-          version: latest
+      - name: Download Arduino CLI
+        run: |
+          curl -fsSL https://downloads.arduino.cc/arduino-cli/arduino-cli_${ARDUINO_CLI_VERSION}_Linux_64bit.tar.gz -o arduino-cli.tar.gz
+          tar -xzf arduino-cli.tar.gz
+          chmod +x arduino-cli
+          sudo mv arduino-cli /usr/local/bin/
+          arduino-cli version
 
       - name: Install ESP32 board package
         run: |
+          arduino-cli config init
           arduino-cli core install esp32:esp32@2.0.17
 
       - name: Install required libraries
@@ -152,11 +149,12 @@ jobs:
       - name: Configure TFT_eSPI for ${{ matrix.screen.name }}
         run: |
           LIB_PATH=$(find ~/.arduino15/packages -name "TFT_eSPI*" -type d | head -1)
-          if [ -z "$LIB_PATH" ]; then
-            LIB_PATH=$(find ~/Arduino/libraries -name "TFT_eSPI" -type d | head -1)
-          fi
+          [ -z "$LIB_PATH" ] && LIB_PATH=$(find ~/Arduino/libraries -name "TFT_eSPI" -type d | head -1)
+          [ -z "$LIB_PATH" ] && LIB_PATH=$(arduino-cli lib list --format json | jq -r '.[] | select(.name == "TFT_eSPI") | .installLocation' 2>/dev/null)
           
           echo "Configuring for: ${{ matrix.screen.name }}"
+          mkdir -p "$LIB_PATH" 2>/dev/null || true
+          
           cat > "$LIB_PATH/User_Setup.h" << EOF
           #define USER_SETUP_ID 1
           #define ESP32
@@ -179,7 +177,6 @@ jobs:
           #define LOAD_GFXFF  1
           #define SMOOTH_FONT 1
           #define SPI_FREQUENCY  40000000
-          #define SPI_READ_FREQUENCY  20000000
           EOF
 
       - name: Build firmware for ${{ matrix.screen.name }}
@@ -189,12 +186,18 @@ jobs:
           
           mkdir -p ./build/${{ matrix.screen.name }}
           
-          arduino-cli compile             --fqbn $BOARD_FQBN             --output-dir ./build/${{ matrix.screen.name }}             --build-property build.extra_flags="-DBOARD_HAS_PSRAM -mfix-esp32-psram-cache-issue"             "$INO_FILE"
+          echo "Building for: ${{ matrix.screen.name }}"
+          
+          arduino-cli compile             --fqbn $BOARD_FQBN             --output-dir ./build/${{ matrix.screen.name }}             --build-property build.extra_flags="-DBOARD_HAS_PSRAM -mfix-esp32-psram-cache-issue"             "$INO_FILE" || {
+            echo "Build failed, trying without extra flags..."
+            arduino-cli compile               --fqbn $BOARD_FQBN               --output-dir ./build/${{ matrix.screen.name }}               "$INO_FILE"
+          }
           
           cd ./build/${{ matrix.screen.name }}
           for bin in *.bin; do
             [ -f "$bin" ] && mv "$bin" "cyberos-${{ matrix.screen.name }}-$(git rev-parse --short HEAD).bin"
           done
+          ls -la
 
       - name: Upload artifacts for ${{ matrix.screen.name }}
         uses: actions/upload-artifact@v4
@@ -237,14 +240,10 @@ jobs:
           for dir in ./all-firmwares/*/; do
             [ -d "$dir" ] && {
               SCREEN=$(basename "$dir")
-              COUNT=$(find "$dir" -name "*.bin" | wc -l)
+              COUNT=$(find "$dir" -name "*.bin" 2>/dev/null | wc -l)
               echo "| $SCREEN | ✅ | $COUNT |" >> $GITHUB_STEP_SUMMARY
             }
           done
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## 📦 Download" >> $GITHUB_STEP_SUMMARY
-          echo "Download artifacts from each job for your screen's binaries." >> $GITHUB_STEP_SUMMARY
 
   release:
     needs: build
