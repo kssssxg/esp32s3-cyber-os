@@ -1,3 +1,6 @@
+# ESP32-S3 Cyber OS Build Workflow
+# Multi-screen matrix build for 7 display configurations
+
 name: ESP32-S3 Cyber OS Build (Multi-Screen)
 
 on:
@@ -17,6 +20,8 @@ on:
       - 'src/**'
       - '*.ino'
       - 'partitions.csv'
+      - 'User_Setup.h'
+      - '.github/workflows/**'
   workflow_dispatch:
 
 env:
@@ -24,88 +29,22 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # FIX: Use ubuntu-22.04 (x86_64) instead of ubuntu-latest (now ARM64)
+    # to avoid "esp32:openocd-esp32: no versions available for the current OS"
+    runs-on: ubuntu-22.04
+    
     strategy:
       fail-fast: false
       matrix:
         screen:
-          - name: "240x240-Circular"
-            driver: "0x7735"
-            width: "240"
-            height: "240"
-            miso: "19"
-            mosi: "13"
-            sclk: "14"
-            cs: "15"
-            dc: "4"
-            rst: "48"
-          
-          - name: "240x280-Rect"
-            driver: "0x9341"
-            width: "240"
-            height: "280"
-            miso: "19"
-            mosi: "13"
-            sclk: "14"
-            cs: "15"
-            dc: "4"
-            rst: "48"
-          
-          - name: "320x480"
-            driver: "0x9341"
-            width: "320"
-            height: "480"
-            miso: "19"
-            mosi: "13"
-            sclk: "14"
-            cs: "15"
-            dc: "4"
-            rst: "48"
-          
-          - name: "480x480"
-            driver: "0x9341"
-            width: "480"
-            height: "480"
-            miso: "19"
-            mosi: "13"
-            sclk: "14"
-            cs: "15"
-            dc: "4"
-            rst: "48"
-          
-          - name: "240x320-ST7789"
-            driver: "0x7789"
-            width: "240"
-            height: "320"
-            miso: "19"
-            mosi: "13"
-            sclk: "14"
-            cs: "15"
-            dc: "4"
-            rst: "48"
-          
-          - name: "360x640"
-            driver: "0x9341"
-            width: "360"
-            height: "640"
-            miso: "19"
-            mosi: "13"
-            sclk: "14"
-            cs: "15"
-            dc: "4"
-            rst: "48"
-          
-          - name: "240x240-ILI9341"
-            driver: "0x9341"
-            width: "240"
-            height: "240"
-            miso: "19"
-            mosi: "13"
-            sclk: "14"
-            cs: "15"
-            dc: "4"
-            rst: "48"
-    
+          - {name: "240x240-Circular", driver: "0x7735", width: 240, height: 240, miso: 19, mosi: 13, sclk: 14, cs: 15, dc: 4, rst: 48}
+          - {name: "240x280-Rect", driver: "0x9341", width: 240, height: 280, miso: 19, mosi: 13, sclk: 14, cs: 15, dc: 4, rst: 48}
+          - {name: "320x480", driver: "0x9341", width: 320, height: 480, miso: 19, mosi: 13, sclk: 14, cs: 15, dc: 4, rst: 48}
+          - {name: "480x480", driver: "0x9341", width: 480, height: 480, miso: 19, mosi: 13, sclk: 14, cs: 15, dc: 4, rst: 48}
+          - {name: "240x320-ST7789", driver: "0x7789", width: 240, height: 320, miso: 19, mosi: 13, sclk: 14, cs: 15, dc: 4, rst: 48}
+          - {name: "360x640", driver: "0x9341", width: 360, height: 640, miso: 19, mosi: 13, sclk: 14, cs: 15, dc: 4, rst: 48}
+          - {name: "240x240-ILI9341", driver: "0x9341", width: 240, height: 240, miso: 19, mosi: 13, sclk: 14, cs: 15, dc: 4, rst: 48}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -120,7 +59,7 @@ jobs:
           arduino-cli config init
           arduino-cli core install esp32:esp32@2.0.17
 
-      - name: Install required libraries
+      - name: Install libraries
         run: |
           arduino-cli lib install "TFT_eSPI"
           arduino-cli lib install "NimBLE-Arduino"
@@ -139,9 +78,6 @@ jobs:
         run: |
           LIB_PATH=$(find ~/.arduino15/packages -name "TFT_eSPI*" -type d | head -1)
           [ -z "$LIB_PATH" ] && LIB_PATH=$(find ~/Arduino/libraries -name "TFT_eSPI" -type d | head -1)
-          
-          echo "Configuring for: ${{ matrix.screen.name }}"
-          mkdir -p "$LIB_PATH" 2>/dev/null || true
           
           cat > "$LIB_PATH/User_Setup.h" << EOF
           #define USER_SETUP_ID 1
@@ -174,18 +110,22 @@ jobs:
           
           mkdir -p ./build/${{ matrix.screen.name }}
           
-          echo "Building for: ${{ matrix.screen.name }}"
-          
-          arduino-cli compile             --fqbn $BOARD_FQBN             --output-dir ./build/${{ matrix.screen.name }}             --build-property build.extra_flags="-DBOARD_HAS_PSRAM -mfix-esp32-psram-cache-issue"             "$INO_FILE" || {
-            echo "Build failed, trying without extra flags..."
-            arduino-cli compile               --fqbn $BOARD_FQBN               --output-dir ./build/${{ matrix.screen.name }}               "$INO_FILE"
-          }
+          arduino-cli compile \
+            --fqbn $BOARD_FQBN \
+            --output-dir ./build/${{ matrix.screen.name }} \
+            --build-property build.extra_flags="-DBOARD_HAS_PSRAM -mfix-esp32-psram-cache-issue" \
+            "$INO_FILE" || {
+              echo "Build failed with PSRAM flags, trying without..."
+              arduino-cli compile \
+                --fqbn $BOARD_FQBN \
+                --output-dir ./build/${{ matrix.screen.name }} \
+                "$INO_FILE"
+            }
           
           cd ./build/${{ matrix.screen.name }}
           for bin in *.bin; do
             [ -f "$bin" ] && mv "$bin" "cyberos-${{ matrix.screen.name }}-$(git rev-parse --short HEAD).bin"
           done
-          ls -la
 
       - name: Upload artifacts for ${{ matrix.screen.name }}
         uses: actions/upload-artifact@v4
@@ -194,33 +134,18 @@ jobs:
           path: build/${{ matrix.screen.name }}/
           retention-days: 30
 
-      - name: Build Summary for ${{ matrix.screen.name }}
-        run: |
-          echo "### 🖥️ ${{ matrix.screen.name }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Driver:** 0x${{ matrix.screen.driver }} | **Resolution:** ${{ matrix.screen.width }}×${{ matrix.screen.height }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          for bin in build/${{ matrix.screen.name }}/*.bin; do
-            [ -f "$bin" ] && echo "- \`$(basename $bin)\`: $(du -h "$bin" | cut -f1)" >> $GITHUB_STEP_SUMMARY
-          done
-
   summary:
+    runs-on: ubuntu-22.04
     needs: build
-    runs-on: ubuntu-latest
     if: always()
-    
     steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./all-firmwares
-
       - name: Generate summary
         run: |
           echo "# 🔧 ESP32-S3 Cyber OS - Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** ${{ github.sha }} | **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${GITHUB_SHA::7} | **Branch:** $GITHUB_REF_NAME" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## ✅ Build Results" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Build Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Screen | Status | Files |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|--------|-------|" >> $GITHUB_STEP_SUMMARY
@@ -234,23 +159,24 @@ jobs:
           done
 
   release:
+    runs-on: ubuntu-22.04
     needs: build
-    runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
-    
+    permissions:
+      contents: write
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: ./firmwares
+          path: artifacts/
 
-      - name: Create Release
+      - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          files: firmwares/**/*.bin
+          files: artifacts/**/*
           generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
