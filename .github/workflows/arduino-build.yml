@@ -60,8 +60,8 @@ jobs:
           arduino-cli config init
           arduino-cli core install esp32:esp32@2.0.17
           # Copy custom partition table to board package tools
-          mkdir -p ~/.arduino15/packages/esp32/hardware/esp32/2.0.17/tools/partitions/
-          cp partitions.csv ~/.arduino15/packages/esp32/hardware/esp32/2.0.17/tools/partitions/cyberos_16MB.csv
+          mkdir -p ~/Library/Arduino15/packages/esp32/hardware/esp32/2.0.17/tools/partitions/
+          cp partitions.csv ~/Library/Arduino15/packages/esp32/hardware/esp32/2.0.17/tools/partitions/cyberos_16MB.csv
 
       - name: Install libraries
         run: |
