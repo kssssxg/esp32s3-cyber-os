@@ -1,4 +1,4 @@
-name: ESP32-S3 Cyber OS Build
+name: ESP32-S3 Cyber OS Build (Multi-Screen)
 
 on:
   push:
@@ -9,6 +9,7 @@ on:
       - '*.ino'
       - 'partitions.csv'
       - 'User_Setup.h'
+      - '.github/workflows/**'
   pull_request:
     branches: [main, master]
     paths:
@@ -17,15 +18,108 @@ on:
       - '*.ino'
       - 'partitions.csv'
   workflow_dispatch:
+    inputs:
+      screens:
+        description: 'Screens to build (leave empty for all)'
+        required: false
+        default: ''
 
 env:
   ARDUINO_IDE_VERSION: 1.8.19
   BOARD_FQBN: esp32:esp32:esp32s3
-  SKETCH_DIR: s3
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        screen:
+          # 圆形屏幕
+          - name: "240x240-Circular"
+            driver: "0x7735"
+            width: "240"
+            height: "240"
+            miso: "19"
+            mosi: "13"
+            sclk: "14"
+            cs: "15"
+            dc: "4"
+            rst: "48"
+            description: "240×240 圆形 (ST7789)"
+          
+          # 矩形屏幕系列
+          - name: "240x280-Rect"
+            driver: "0x9341"
+            width: "240"
+            height: "280"
+            miso: "19"
+            mosi: "13"
+            sclk: "14"
+            cs: "15"
+            dc: "4"
+            rst: "48"
+            description: "240×280 (ILI9341)"
+          
+          - name: "320x480"
+            driver: "0x9341"
+            width: "320"
+            height: "480"
+            miso: "19"
+            mosi: "13"
+            sclk: "14"
+            cs: "15"
+            dc: "4"
+            rst: "48"
+            description: "320×480 (ILI9341)"
+          
+          - name: "480x480"
+            driver: "0x9341"
+            width: "480"
+            height: "480"
+            miso: "19"
+            mosi: "13"
+            sclk: "14"
+            cs: "15"
+            dc: "4"
+            rst: "48"
+            description: "480×480 (ILI9341)"
+          
+          - name: "240x320-ST7789"
+            driver: "0x7789"
+            width: "240"
+            height: "320"
+            miso: "19"
+            mosi: "13"
+            sclk: "14"
+            cs: "15"
+            dc: "4"
+            rst: "48"
+            description: "240×320 (ST7789)"
+          
+          - name: "360x640"
+            driver: "0x9341"
+            width: "360"
+            height: "640"
+            miso: "19"
+            mosi: "13"
+            sclk: "14"
+            cs: "15"
+            dc: "4"
+            rst: "48"
+            description: "360×640 (ILI9341)"
+          
+          - name: "240x240-ILI9341"
+            driver: "0x9341"
+            width: "240"
+            height: "240"
+            miso: "19"
+            mosi: "13"
+            sclk: "14"
+            cs: "15"
+            dc: "4"
+            rst: "48"
+            description: "240×240 (ILI9341)"
     
     steps:
       - name: Checkout repository
@@ -55,122 +149,121 @@ jobs:
           arduino-cli lib install "ArduinoJson"
           arduino-cli lib install "TimeLib"
 
-      - name: Configure TFT_eSPI
+      - name: Configure TFT_eSPI for ${{ matrix.screen.name }}
         run: |
-          # Find TFT_eSPI library path
-          LIB_PATH=$(arduino-cli lib list | grep TFT_eSPI | awk '{print $NF}')
-          if [ -z "$LIB_PATH" ]; then
-            LIB_PATH=$(find ~/.arduino15/packages -name "TFT_eSPI*" -type d | head -1)
-          fi
+          LIB_PATH=$(find ~/.arduino15/packages -name "TFT_eSPI*" -type d | head -1)
           if [ -z "$LIB_PATH" ]; then
             LIB_PATH=$(find ~/Arduino/libraries -name "TFT_eSPI" -type d | head -1)
           fi
           
-          # Copy our User_Setup.h if exists, otherwise create a basic one for S3
-          if [ -f "User_Setup.h" ]; then
-            cp User_Setup.h "$LIB_PATH/User_Setup.h"
-          else
-            cat > "$LIB_PATH/User_Setup.h" << 'EOF'
-            // TFT_eSPI User_Setup.h for ESP32-S3 240x240 TFT
-            #define USER_SETUP_ID 1
-            #define ESP32
-            #define TFT_DRIVER 0x7735
-            
-            // Pin definitions for ESP32-S3
-            #define TFT_MISO 19
-            #define TFT_MOSI 13
-            #define TFT_SCLK 14
-            #define TFT_CS    15
-            #define TFT_DC    4
-            #define TFT_RST   48
-            
-            #define TOUCH_CS -1
-            
-            #define LOAD_GLCD   1
-            #define LOAD_FONT2  1
-            #define LOAD_FONT4  1
-            #define LOAD_FONT6  1
-            #define LOAD_FONT7  1
-            #define LOAD_FONT8  1
-            #define LOAD_GFXFF  1
-            
-            #define SMOOTH_FONT 1
-            
-            #define SPI_FREQUENCY  40000000
-            #define SPI_READ_FREQUENCY  20000000
-            #define SPI_TOUCH_FREQUENCY  2500000
-            EOF
-          fi
+          echo "Configuring for: ${{ matrix.screen.name }}"
+          cat > "$LIB_PATH/User_Setup.h" << EOF
+          #define USER_SETUP_ID 1
+          #define ESP32
+          #define TFT_DRIVER ${{ matrix.screen.driver }}
+          #define TFT_MISO ${{ matrix.screen.miso }}
+          #define TFT_MOSI ${{ matrix.screen.mosi }}
+          #define TFT_SCLK ${{ matrix.screen.sclk }}
+          #define TFT_CS    ${{ matrix.screen.cs }}
+          #define TFT_DC    ${{ matrix.screen.dc }}
+          #define TFT_RST   ${{ matrix.screen.rst }}
+          #define TOUCH_CS -1
+          #define TFT_WIDTH  ${{ matrix.screen.width }}
+          #define TFT_HEIGHT ${{ matrix.screen.height }}
+          #define LOAD_GLCD   1
+          #define LOAD_FONT2  1
+          #define LOAD_FONT4  1
+          #define LOAD_FONT6  1
+          #define LOAD_FONT7  1
+          #define LOAD_FONT8  1
+          #define LOAD_GFXFF  1
+          #define SMOOTH_FONT 1
+          #define SPI_FREQUENCY  40000000
+          #define SPI_READ_FREQUENCY  20000000
+          EOF
 
-      - name: Build sketch
+      - name: Build firmware for ${{ matrix.screen.name }}
         run: |
-          # Find the .ino file
           INO_FILE=$(find . -name "*.ino" -path "*/s3/*" | head -1)
-          if [ -z "$INO_FILE" ]; then
-            INO_FILE=$(find . -name "*.ino" | head -1)
-          fi
+          [ -z "$INO_FILE" ] && INO_FILE=$(find . -name "*.ino" | head -1)
           
-          echo "Building: $INO_FILE"
-          arduino-cli compile \
-            --fqbn $BOARD_FQBN \
-            --output-dir ./build \
-            "$INO_FILE"
+          mkdir -p ./build/${{ matrix.screen.name }}
+          
+          arduino-cli compile             --fqbn $BOARD_FQBN             --output-dir ./build/${{ matrix.screen.name }}             --build-property build.extra_flags="-DBOARD_HAS_PSRAM -mfix-esp32-psram-cache-issue"             "$INO_FILE"
+          
+          cd ./build/${{ matrix.screen.name }}
+          for bin in *.bin; do
+            [ -f "$bin" ] && mv "$bin" "cyberos-${{ matrix.screen.name }}-$(git rev-parse --short HEAD).bin"
+          done
 
-      - name: Build firmware binary
-        run: |
-          # Generate the combined binary for flashing
-          arduino-cli compile \
-            --fqbn $BOARD_FQBN \
-            --output-dir ./build \
-            --build-property build.extra_flags="-DBOARD_HAS_PSRAM -mfix-esp32-psram-cache-issue" \
-            "$(find . -name '*.ino' -path '*/s3/*' | head -1)" || \
-          arduino-cli compile \
-            --fqbn $BOARD_FQBN \
-            --output-dir ./build \
-            "$(find . -name '*.ino' | head -1)"
-
-      - name: Upload build artifacts
+      - name: Upload artifacts for ${{ matrix.screen.name }}
         uses: actions/upload-artifact@v4
         with:
-          name: firmware-${{ github.sha }}
-          path: build/
+          name: firmware-${{ matrix.screen.name }}-${{ github.sha }}
+          path: build/${{ matrix.screen.name }}/
           retention-days: 30
 
-      - name: Check build size
+      - name: Build Summary for ${{ matrix.screen.name }}
         run: |
-          if [ -f "build/*.bin" ]; then
-            echo "### Build Results" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            for bin in build/*.bin; do
-              SIZE=$(du -h "$bin" | cut -f1)
-              echo "- \`$bin\`: $SIZE" >> $GITHUB_STEP_SUMMARY
-            done
-          fi
+          echo "### 🖥️ ${{ matrix.screen.name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Driver:** 0x${{ matrix.screen.driver }} | **Resolution:** ${{ matrix.screen.width }}×${{ matrix.screen.height }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          for bin in build/${{ matrix.screen.name }}/*.bin; do
+            [ -f "$bin" ] && echo "- \`$(basename $bin)\`: $(du -h "$bin" | cut -f1)" >> $GITHUB_STEP_SUMMARY
+          done
 
-  # Optional: Create release on tag push
+  summary:
+    needs: build
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./all-firmwares
+
+      - name: Generate summary
+        run: |
+          echo "# 🔧 ESP32-S3 Cyber OS - Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }} | **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ Build Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Screen | Status | Files |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          
+          for dir in ./all-firmwares/*/; do
+            [ -d "$dir" ] && {
+              SCREEN=$(basename "$dir")
+              COUNT=$(find "$dir" -name "*.bin" | wc -l)
+              echo "| $SCREEN | ✅ | $COUNT |" >> $GITHUB_STEP_SUMMARY
+            }
+          done
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📦 Download" >> $GITHUB_STEP_SUMMARY
+          echo "Download artifacts from each job for your screen's binaries." >> $GITHUB_STEP_SUMMARY
+
   release:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download build artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          name: firmware-${{ github.sha }}
-          path: ./firmware
+          path: ./firmwares
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            firmware/*.bin
-            firmware/*.elf
+          files: firmwares/**/*.bin
           generate_release_notes: true
-          draft: false
-          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
