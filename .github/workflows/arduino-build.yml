@@ -70,7 +70,7 @@ jobs:
           arduino-cli lib install "AnimatedGIF"
           arduino-cli lib install "NTPClient"
           arduino-cli lib install "MD_MIDIFile"
-          arduino-cli lib install "Adafruit_NeoPixel"
+          arduino-cli lib install "Adafruit_NeoPixel@1.15.5"
           arduino-cli lib install "ArduinoJson"
           arduino-cli lib install "TimeLib"
           
