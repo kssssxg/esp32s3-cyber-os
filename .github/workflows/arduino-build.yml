@@ -25,7 +25,7 @@ on:
   workflow_dispatch:
 
 env:
-  BOARD_FQBN: esp32:esp32:esp32s3
+  BOARD_FQBN: esp32:esp32:esp32s3:PartitionScheme=custom,FlashSize=16M
 
 jobs:
   build:
@@ -106,12 +106,14 @@ jobs:
             --fqbn $BOARD_FQBN \
             --output-dir ./build/${{ matrix.screen.name }} \
             --libraries ./libraries \
+            --build-property build.custom_partitions=partitions.csv \
             --build-property build.extra_flags="-DBOARD_HAS_PSRAM -mfix-esp32-psram-cache-issue" \
             "$INO_FILE" || {
               echo "Build failed with PSRAM flags, trying without..."
               arduino-cli compile \
                 --fqbn $BOARD_FQBN \
                 --libraries ./libraries \
+                --build-property build.custom_partitions=partitions.csv \
                 --output-dir ./build/${{ matrix.screen.name }} \
                 "$INO_FILE"
             }
@@ -155,7 +157,7 @@ jobs:
   release:
     runs-on: macos-15-intel
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
     steps:
@@ -169,8 +171,39 @@ jobs:
         with:
           path: artifacts/
 
-      - name: Create release
+      - name: Generate release tag
+        id: tag
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          else
+            TAG="build-$(date +%Y%m%d-%H%M)-${GITHUB_SHA::7}"
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "ESP32-S3 Cyber OS ${{ steps.tag.outputs.tag }}"
+          body: |
+            ## 🔧 ESP32-S3 Cyber OS - Auto Build
+            
+            **Commit:** ${{ github.sha }}
+            **Branch:** ${{ github.ref_name }}
+            
+            ### 📦 Firmware Downloads
+            - 240x240-Circular (0x7735)
+            - 240x280-Rect (0x9341)
+            - 320x480 (0x9341)
+            - 480x480 (0x9341)
+            - 240x320-ST7789 (0x7789)
+            - 360x640 (0x9341)
+            - 240x240-ILI9341 (0x9341)
+            
+            > 💡 Flash with: `esptool.py write_flash 0x10000 firmware.bin`
           files: artifacts/**/*
+          prerelease: ${{ steps.tag.outputs.prerelease }}
           generate_release_notes: true
