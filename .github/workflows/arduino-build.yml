@@ -25,7 +25,7 @@ on:
   workflow_dispatch:
 
 env:
-  BOARD_FQBN: esp32:esp32:esp32s3:PartitionScheme=custom,FlashSize=16M
+  BOARD_FQBN: esp32:esp32:esp32s3:FlashSize=16M
 
 jobs:
   build:
@@ -106,14 +106,12 @@ jobs:
             --fqbn $BOARD_FQBN \
             --output-dir ./build/${{ matrix.screen.name }} \
             --libraries ./libraries \
-            --build-property build.custom_partitions=partitions.csv \
             --build-property build.extra_flags="-DBOARD_HAS_PSRAM -mfix-esp32-psram-cache-issue" \
             "$INO_FILE" || {
               echo "Build failed with PSRAM flags, trying without..."
               arduino-cli compile \
                 --fqbn $BOARD_FQBN \
                 --libraries ./libraries \
-                --build-property build.custom_partitions=partitions.csv \
                 --output-dir ./build/${{ matrix.screen.name }} \
                 "$INO_FILE"
             }
