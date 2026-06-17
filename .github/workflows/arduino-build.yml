@@ -62,37 +62,14 @@ jobs:
 
       - name: Install libraries
         run: |
-          arduino-cli lib install "TFT_eSPI"
-          arduino-cli lib install "NimBLE-Arduino"
-          arduino-cli lib install "SdFat"
-          arduino-cli lib install "TJpg_Decoder"
-          arduino-cli lib install "PNGdec"
-          arduino-cli lib install "AnimatedGIF"
-          arduino-cli lib install "NTPClient"
-          arduino-cli lib install "MD_MIDIFile"
-          arduino-cli lib install "Adafruit_NeoPixel" || {
-            echo "Adafruit_NeoPixel not found in index, installing from GitHub..."
-            cd ~/Arduino/libraries
-            curl -L -o neopixel.zip "https://github.com/adafruit/Adafruit_NeoPixel/archive/refs/heads/master.zip"
-            unzip -q neopixel.zip
-            mv Adafruit_NeoPixel-master Adafruit_NeoPixel
-            rm neopixel.zip
-          }
+          # Libraries are pre-installed in ./libraries/ directory in the repo
+          # Only install ArduinoJson from index (it's available there)
           arduino-cli lib install "ArduinoJson"
-          arduino-cli lib install "TimeLib"
-          
-          # Install ESP32-audioI2S from GitHub (not in Arduino library index)
-          mkdir -p ~/Arduino/libraries
-          cd ~/Arduino/libraries
-          curl -L -o audio.zip "https://github.com/schreibfaul1/ESP32-audioI2S/archive/refs/heads/master.zip"
-          unzip -q audio.zip
-          mv ESP32-audioI2S-master ESP32-audioI2S
-          rm audio.zip
 
       - name: Configure TFT_eSPI for ${{ matrix.screen.name }}
         run: |
-          LIB_PATH=$(find ~/.arduino15/packages -name "TFT_eSPI*" -type d | head -1)
-          [ -z "$LIB_PATH" ] && LIB_PATH=$(find ~/Arduino/libraries -name "TFT_eSPI" -type d | head -1)
+          # TFT_eSPI is in ./libraries/ directory
+          LIB_PATH="./libraries/TFT_eSPI"
           
           cat > "$LIB_PATH/User_Setup.h" << EOF
           #define USER_SETUP_ID 1
@@ -128,11 +105,13 @@ jobs:
           arduino-cli compile \
             --fqbn $BOARD_FQBN \
             --output-dir ./build/${{ matrix.screen.name }} \
+            --libraries ./libraries \
             --build-property build.extra_flags="-DBOARD_HAS_PSRAM -mfix-esp32-psram-cache-issue" \
             "$INO_FILE" || {
               echo "Build failed with PSRAM flags, trying without..."
               arduino-cli compile \
                 --fqbn $BOARD_FQBN \
+                --libraries ./libraries \
                 --output-dir ./build/${{ matrix.screen.name }} \
                 "$INO_FILE"
             }
