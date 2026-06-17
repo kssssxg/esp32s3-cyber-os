@@ -135,30 +135,6 @@ jobs:
           path: build/${{ matrix.screen.name }}/
           retention-days: 30
 
-  summary:
-    runs-on: macos-15-intel
-    needs: build
-    if: always()
-    steps:
-      - name: Generate summary
-        run: |
-          echo "# 🔧 ESP32-S3 Cyber OS - Build Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** ${GITHUB_SHA::7} | **Branch:** $GITHUB_REF_NAME" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## 📊 Build Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Screen | Status | Files |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          
-          for dir in ./build/*/; do
-            [ -d "$dir" ] && {
-              SCREEN=$(basename "$dir")
-              COUNT=$(find "$dir" -name "*.bin" 2>/dev/null | wc -l)
-              echo "| $SCREEN | ✅ | $COUNT |" >> $GITHUB_STEP_SUMMARY
-            }
-          done
-
   release:
     runs-on: macos-15-intel
     needs: build
