@@ -1,0 +1,176 @@
+name: ESP32-S3 Cyber OS Build
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 's3/**'
+      - 'src/**'
+      - '*.ino'
+      - 'partitions.csv'
+      - 'User_Setup.h'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 's3/**'
+      - 'src/**'
+      - '*.ino'
+      - 'partitions.csv'
+  workflow_dispatch:
+
+env:
+  ARDUINO_IDE_VERSION: 1.8.19
+  BOARD_FQBN: esp32:esp32:esp32s3
+  SKETCH_DIR: s3
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+        with:
+          version: latest
+
+      - name: Install ESP32 board package
+        run: |
+          arduino-cli core install esp32:esp32@2.0.17
+
+      - name: Install required libraries
+        run: |
+          arduino-cli lib install "TFT_eSPI"
+          arduino-cli lib install "NimBLE-Arduino"
+          arduino-cli lib install "SdFat"
+          arduino-cli lib install "TJpg_Decoder"
+          arduino-cli lib install "PNGdec"
+          arduino-cli lib install "AnimatedGIF"
+          arduino-cli lib install "ESP32-audioI2S"
+          arduino-cli lib install "NTPClient"
+          arduino-cli lib install "MD_MIDIFile"
+          arduino-cli lib install "Adafruit_NeoPixel"
+          arduino-cli lib install "ArduinoJson"
+          arduino-cli lib install "TimeLib"
+
+      - name: Configure TFT_eSPI
+        run: |
+          # Find TFT_eSPI library path
+          LIB_PATH=$(arduino-cli lib list | grep TFT_eSPI | awk '{print $NF}')
+          if [ -z "$LIB_PATH" ]; then
+            LIB_PATH=$(find ~/.arduino15/packages -name "TFT_eSPI*" -type d | head -1)
+          fi
+          if [ -z "$LIB_PATH" ]; then
+            LIB_PATH=$(find ~/Arduino/libraries -name "TFT_eSPI" -type d | head -1)
+          fi
+          
+          # Copy our User_Setup.h if exists, otherwise create a basic one for S3
+          if [ -f "User_Setup.h" ]; then
+            cp User_Setup.h "$LIB_PATH/User_Setup.h"
+          else
+            cat > "$LIB_PATH/User_Setup.h" << 'EOF'
+            // TFT_eSPI User_Setup.h for ESP32-S3 240x240 TFT
+            #define USER_SETUP_ID 1
+            #define ESP32
+            #define TFT_DRIVER 0x7735
+            
+            // Pin definitions for ESP32-S3
+            #define TFT_MISO 19
+            #define TFT_MOSI 13
+            #define TFT_SCLK 14
+            #define TFT_CS    15
+            #define TFT_DC    4
+            #define TFT_RST   48
+            
+            #define TOUCH_CS -1
+            
+            #define LOAD_GLCD   1
+            #define LOAD_FONT2  1
+            #define LOAD_FONT4  1
+            #define LOAD_FONT6  1
+            #define LOAD_FONT7  1
+            #define LOAD_FONT8  1
+            #define LOAD_GFXFF  1
+            
+            #define SMOOTH_FONT 1
+            
+            #define SPI_FREQUENCY  40000000
+            #define SPI_READ_FREQUENCY  20000000
+            #define SPI_TOUCH_FREQUENCY  2500000
+            EOF
+          fi
+
+      - name: Build sketch
+        run: |
+          # Find the .ino file
+          INO_FILE=$(find . -name "*.ino" -path "*/s3/*" | head -1)
+          if [ -z "$INO_FILE" ]; then
+            INO_FILE=$(find . -name "*.ino" | head -1)
+          fi
+          
+          echo "Building: $INO_FILE"
+          arduino-cli compile \
+            --fqbn $BOARD_FQBN \
+            --output-dir ./build \
+            "$INO_FILE"
+
+      - name: Build firmware binary
+        run: |
+          # Generate the combined binary for flashing
+          arduino-cli compile \
+            --fqbn $BOARD_FQBN \
+            --output-dir ./build \
+            --build-property build.extra_flags="-DBOARD_HAS_PSRAM -mfix-esp32-psram-cache-issue" \
+            "$(find . -name '*.ino' -path '*/s3/*' | head -1)" || \
+          arduino-cli compile \
+            --fqbn $BOARD_FQBN \
+            --output-dir ./build \
+            "$(find . -name '*.ino' | head -1)"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ github.sha }}
+          path: build/
+          retention-days: 30
+
+      - name: Check build size
+        run: |
+          if [ -f "build/*.bin" ]; then
+            echo "### Build Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            for bin in build/*.bin; do
+              SIZE=$(du -h "$bin" | cut -f1)
+              echo "- \`$bin\`: $SIZE" >> $GITHUB_STEP_SUMMARY
+            done
+          fi
+
+  # Optional: Create release on tag push
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: firmware-${{ github.sha }}
+          path: ./firmware
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            firmware/*.bin
+            firmware/*.elf
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
