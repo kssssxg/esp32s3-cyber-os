@@ -70,7 +70,14 @@ jobs:
           arduino-cli lib install "AnimatedGIF"
           arduino-cli lib install "NTPClient"
           arduino-cli lib install "MD_MIDIFile"
-          arduino-cli lib install "Adafruit_NeoPixel@1.15.5"
+          arduino-cli lib install "Adafruit_NeoPixel" || {
+            echo "Adafruit_NeoPixel not found in index, installing from GitHub..."
+            cd ~/Arduino/libraries
+            curl -L -o neopixel.zip "https://github.com/adafruit/Adafruit_NeoPixel/archive/refs/heads/master.zip"
+            unzip -q neopixel.zip
+            mv Adafruit_NeoPixel-master Adafruit_NeoPixel
+            rm neopixel.zip
+          }
           arduino-cli lib install "ArduinoJson"
           arduino-cli lib install "TimeLib"
           
