@@ -59,6 +59,9 @@ jobs:
         run: |
           arduino-cli config init
           arduino-cli core install esp32:esp32@2.0.17
+          # Copy custom partition table to board package tools
+          mkdir -p ~/.arduino15/packages/esp32/hardware/esp32/2.0.17/tools/partitions/
+          cp partitions.csv ~/.arduino15/packages/esp32/hardware/esp32/2.0.17/tools/partitions/cyberos_16MB.csv
 
       - name: Install libraries
         run: |
@@ -106,12 +109,16 @@ jobs:
             --fqbn $BOARD_FQBN \
             --output-dir ./build/${{ matrix.screen.name }} \
             --libraries ./libraries \
+            --build-property build.partitions=cyberos_16MB \
+            --build-property upload.maximum_size=13631488 \
             --build-property build.extra_flags="-DBOARD_HAS_PSRAM -mfix-esp32-psram-cache-issue" \
             "$INO_FILE" || {
               echo "Build failed with PSRAM flags, trying without..."
               arduino-cli compile \
                 --fqbn $BOARD_FQBN \
                 --libraries ./libraries \
+                --build-property build.partitions=cyberos_16MB \
+                --build-property upload.maximum_size=13631488 \
                 --output-dir ./build/${{ matrix.screen.name }} \
                 "$INO_FILE"
             }
