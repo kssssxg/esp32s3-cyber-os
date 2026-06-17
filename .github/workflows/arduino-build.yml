@@ -68,7 +68,7 @@ jobs:
           arduino-cli lib install "TJpg_Decoder"
           arduino-cli lib install "PNGdec"
           arduino-cli lib install "AnimatedGIF"
-          arduino-cli lib install "ESP32-audioI2S"
+          arduino-cli lib install "ESP32_audioI2S_master"
           arduino-cli lib install "NTPClient"
           arduino-cli lib install "MD_MIDIFile"
           arduino-cli lib install "Adafruit_NeoPixel"
