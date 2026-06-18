@@ -5,7 +5,27 @@
 #include <cstdio>
 #include <cstring>
 #include <memory>
-#include <span>
+#include <cstddef>
+// C++17-compatible span polyfill (std::span is C++20)
+template<typename T>
+struct span {
+    T* data_;
+    std::size_t size_;
+    
+    constexpr span() noexcept : data_(nullptr), size_(0) {}
+    constexpr span(T* data, std::size_t size) noexcept : data_(data), size_(size) {}
+    constexpr span(T* begin, T* end) noexcept : data_(begin), size_(end - begin) {}
+    
+    constexpr T* data() const noexcept { return data_; }
+    constexpr std::size_t size() const noexcept { return size_; }
+    constexpr std::size_t size_bytes() const noexcept { return size_ * sizeof(T); }
+    
+    constexpr T& operator[](std::size_t i) const noexcept { return data_[i]; }
+    constexpr T& operator[](int i) const noexcept { return data_[i]; }
+    
+    constexpr T* begin() const noexcept { return data_; }
+    constexpr T* end() const noexcept { return data_ + size_; }
+};
 #include <type_traits>
 #include <utility>
 
