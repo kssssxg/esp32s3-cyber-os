@@ -100,8 +100,12 @@ jobs:
 
       - name: Build firmware for ${{ matrix.screen.name }}
         run: |
-          INO_FILE=$(find . -name "*.ino" -path "*/s3/*" | head -1)
-          [ -z "$INO_FILE" ] && INO_FILE=$(find . -name "*.ino" | head -1)
+          # Explicitly use s3.ino in the repo root (not library examples)
+          INO_FILE="s3.ino"
+          if [ ! -f "$INO_FILE" ]; then
+            INO_FILE=$(find . -maxdepth 2 -name "*.ino" -not -path "./libraries/*" | head -1)
+          fi
+          echo "Building: $INO_FILE"
           
           mkdir -p ./build/${{ matrix.screen.name }}
           
