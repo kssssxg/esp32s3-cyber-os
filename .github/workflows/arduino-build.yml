@@ -100,15 +100,10 @@ jobs:
 
       - name: Build firmware for ${{ matrix.screen.name }}
         run: |
-          # Explicitly use s3.ino in the repo root (not library examples)
-          INO_FILE="s3.ino"
-          if [ ! -f "$INO_FILE" ]; then
-            INO_FILE=$(find . -maxdepth 2 -name "*.ino" -not -path "./libraries/*" | head -1)
-          fi
-          echo "Building: $INO_FILE"
-          
           mkdir -p ./build/${{ matrix.screen.name }}
           
+          # Arduino CLI requires .ino file to match sketch directory name
+          # Repo is "esp32s3-cyber-os" and .ino is now "esp32s3-cyber-os.ino"
           arduino-cli compile \
             --fqbn $BOARD_FQBN \
             --output-dir ./build/${{ matrix.screen.name }} \
@@ -116,7 +111,7 @@ jobs:
             --build-property build.partitions=cyberos_16MB \
             --build-property upload.maximum_size=13631488 \
             --build-property build.extra_flags="-DBOARD_HAS_PSRAM -mfix-esp32-psram-cache-issue" \
-            "$INO_FILE" || {
+            ./esp32s3-cyber-os.ino || {
               echo "Build failed with PSRAM flags, trying without..."
               arduino-cli compile \
                 --fqbn $BOARD_FQBN \
@@ -124,7 +119,7 @@ jobs:
                 --build-property build.partitions=cyberos_16MB \
                 --build-property upload.maximum_size=13631488 \
                 --output-dir ./build/${{ matrix.screen.name }} \
-                "$INO_FILE"
+                ./esp32s3-cyber-os.ino
             }
           
           cd ./build/${{ matrix.screen.name }}
