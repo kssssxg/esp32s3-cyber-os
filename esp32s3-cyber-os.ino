@@ -38,6 +38,7 @@
 // NES模拟器头文件 (直接使用nes文件夹里的emucore现成代码)
 #include "nes_config.h"
 #include "emucore.h"
+#include "nes_bridge.cpp"  // NES bridge implementation
 void runNesEmulator(String romPath);
 // 模板应用系统
 #include "app_templates.h"
