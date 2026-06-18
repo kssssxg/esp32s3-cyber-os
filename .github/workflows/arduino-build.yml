@@ -110,7 +110,7 @@ jobs:
             --libraries ./libraries \
             --build-property build.partitions=cyberos_16MB \
             --build-property upload.maximum_size=13631488 \
-            --build-property compiler.cpp.extra_flags="-std=c++20 -DBOARD_HAS_PSRAM -mfix-esp32-psram-cache-issue -DCORE_DEBUG_LEVEL=3" \
+            --build-property compiler.cpp.extra_flags="-std=c++20 -DBOARD_HAS_PSRAM -mfix-esp32-psram-cache-issue -DCORE_DEBUG_LEVEL=3 -frtti" \
             ./esp32s3-cyber-os.ino || {
               echo "Build failed with PSRAM flags, trying without..."
               arduino-cli compile \
@@ -118,7 +118,7 @@ jobs:
                 --libraries ./libraries \
                 --build-property build.partitions=cyberos_16MB \
                 --build-property upload.maximum_size=13631488 \
-                --build-property compiler.cpp.extra_flags="-std=c++20 -DBOARD_HAS_PSRAM -mfix-esp32-psram-cache-issue -DCORE_DEBUG_LEVEL=3" \
+                --build-property compiler.cpp.extra_flags="-std=c++20 -DBOARD_HAS_PSRAM -mfix-esp32-psram-cache-issue -DCORE_DEBUG_LEVEL=3 -frtti" \
                 --output-dir ./build/${{ matrix.screen.name }} \
                 ./esp32s3-cyber-os.ino
             }
